@@ -26,8 +26,11 @@ If everything works fine, it should show:
 To run ruby code:
 
 gem install sinatra
+
 gem install nokogiri
+
 gem install json
+
 gem install open-uri
 
 Then, run: ruby scrape.rb in Web_scraping directory
