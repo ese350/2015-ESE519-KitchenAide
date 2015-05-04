@@ -1,13 +1,13 @@
 # 2015-ESE519-KitchenAide
-KithchenAide - ESE 519 Project (Inventory Manager and Smart Assistant for Kitchen)
+**KithchenAide** - ESE 519 Project (Inventory Manager and Smart Assistant for Kitchen)
 
-Blog: https://ese519kitchenaide.wordpress.com/
+**Blog**: https://ese519kitchenaide.wordpress.com/
 
-Final demo video: https://docs.google.com/file/d/0BzQgzacBQM8bdV9VeklBY2pycHM/edit
+**Final demo video**: https://docs.google.com/file/d/0BzQgzacBQM8bdV9VeklBY2pycHM/edit
 
-Our repository: https://github.com/cpshah1507/KitchenAide
+**Our repository**: https://github.com/cpshah1507/KitchenAide
 
-Final report: https://drive.google.com/file/d/0BzQgzacBQM8bUUpNSXRWcWQ4Z1k/view
+**Final report**: https://drive.google.com/file/d/0BzQgzacBQM8bUUpNSXRWcWQ4Z1k/view
 
 
 To run the server application:
