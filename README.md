@@ -10,7 +10,7 @@
 **Final report**: https://drive.google.com/file/d/0BzQgzacBQM8bUUpNSXRWcWQ4Z1k/view
 
 
-To run the server application:
+*To run the server application*:
 
 Install MongoDb for your system (http://docs.mongodb.org/manual/installation/)
 
