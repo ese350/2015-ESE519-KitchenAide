@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Kitchen Aide | Fill Ingredient Box</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" type="text/css" href="../css/bootstrap.css">
+<link rel="stylesheet" type="text/css" href="../css/font-awesome.css">
+<link rel="stylesheet" type="text/css" href="../css/style.css">
+<link href='http://fonts.googleapis.com/css?family=Roboto:400,300,700|Open+Sans:700' rel='stylesheet' type='text/css'>
+
+<script type="text/javascript" src="../js/jquery-1.8.3.min.js"></script>
+<script type="text/javascript" src="../js/jquery.mobile.customized.min.js"></script>
+<script type="text/javascript" src="../js/jquery.easing.1.3.js"></script> 
+<script src="../js/bootstrap.min.js"></script>
+
+</head>
+<body>
+	<div class="scroll-up-btn" style="position:fixed;right:5%;top:20%;height:60px;width:60px;background-image:url('../images/up_btn.png');background-size:100% 100%;cursor:pointer;z-index:100"></div>
+	<div class="scroll-down-btn" style="position:fixed;right:5%;top:70%;height:60px;width:60px;background-image:url('../images/down_btn.png');background-size:100% 100%;cursor:pointer;z-index:100"></div>
+    <div class="recipe_ingrs" ingrs="{{ingrs}}" amounts="{{amounts}}" others="{{other}}" bitvector="{{bit_vector}}"></div>
+    <div id="home">
+		<h2 style="text-align:center;color:#FFF;background-color:#000;padding:10px;margin:0;"/>{{recipe_name}}</h2>
+		<div class="container">
+			<div class="row">
+				<div class="col-md-12">
+					<h3 style="text-align:center;margin-top:10px">Fill Ingredients</h3>
+				</div>
+			</div>
+		</div>
+	</div>
+	<form method="post" action="/recipes/cook" class="form-inline cook_recipe" role="form" style="display:none">
+			<input type="hidden" name="recipe_name" value="{{recipe_name}}" class="form_recipe_name"/>
+			<input type="hidden" name="_csrf" value="{{ csrf_token }}" />
+	</form>
+
+	<div class="container">
+		<div class="col-md-offset-2 col-md-8">
+			<h4><span style="font-weight:bold">Current Ingredient: </span><span class="curr_ingr"></span></h4>
+		</div>
+	</div>
+	
+	<div class="container">
+		<div class="progress col-md-8 col-md-offset-2" style="padding:0px">
+		  <div class="progress-bar progress-bar-success" style="width: 0%">
+		    <span class="sr-only">35% Complete (success)</span>
+		  </div>
+		  <div class="progress-bar progress-bar-warning progress-bar-striped" style="width: 0%">
+		    <span class="sr-only">20% Complete (warning)</span>
+		  </div>
+		  <div class="progress-bar progress-bar-danger" style="width: 0%">
+		    <span class="sr-only">10% Complete (danger)</span>
+		  </div>
+		</div>
+	</div>
+
+	<table style="font-size:18px;width:66.66%" class="table table-striped recipe_table col-md-offset-2" recipes={{recipe_names}} timestamps={{timestamps}}>
+		<thead><th class="col-md-4">Ingredient</th><th>Target Weight (gm/ml)</th><th>Actual Weight (gm/ml)</th><th>Status</th></thead>
+		<tbody>
+		</tbody>
+	</table>
+	<div class="container">
+    	<div class="row">
+	    		<div class="col-md-12">
+	    			<h4 class="other_ingrs_note" style="text-align:center">Note - Apart from ingredients above, this recipe also requires following ingredients:</h4>
+	    			<h4 class="other_ingrs" style="text-align:center"></h4>
+	    		</div>
+	    	</div>
+	    </div>
+
+	<div class="container" style="margin-top:20px;margin-bottom:20px">
+		<div class="row">
+			<button class='col-md-2 col-md-offset-2 abort btn btn-danger abort_btn'>Abort</button>
+			<!-- disabled="disabled" -->
+			<button class='col-md-2 col-md-offset-4 abort btn btn-success cook_recipe_btn' disabled="disabled" >Proceed</button>
+		</div>
+	</div>
+	
+	<script type="text/javascript">
+	jQuery(document).ready(function(){
+
+		var ingrs = $('.recipe_ingrs').attr('ingrs').split("@");
+		var amounts = $('.recipe_ingrs').attr('amounts').split("@");
+		var others = $('.recipe_ingrs').attr('others').split("@");
+		var bit_vector = $('.recipe_ingrs').attr('bitvector').split("@");
+		
+		/********************************** UI for corner cases ****************************************/		
+		if(ingrs == "")
+			$('.other_ingrs_note').html("This recipe requires following ingredients:");
+
+		if(others == "")
+			$('.other_ingrs_note').html("");
+		else
+			$('.other_ingrs').html(others.join(" ; "));
+
+
+		/********************************** Add Ingredients to table ************************************/
+		ingrs.forEach(function(ingr,index){
+			// Need to decide how to get actual weight from sensor to here */
+			$('.recipe_table tbody').append("<tr class='box_item'> <td>" + ingr + "</td> <td>" + amounts[index] + "</td> <td>0</td> <td class='status_cell'></td> </tr>");
+		});
+
+		/********************************** Sort ingredients *******************************************/		
+
+		var sorted_amounts = $('.recipe_ingrs').attr('amounts').split("@").sort(function(a, b){return b-a});
+		var orig_ingrs = ingrs;
+		
+		for(var i = 0; i < sorted_amounts.length;i++)
+		{
+			for(var j = 0; j < amounts.length;j++)
+			{
+				if(sorted_amounts[i] == amounts[j])
+				{
+					$('.recipe_table tbody .box_item').eq(i).find('td').eq(0).html(orig_ingrs[j]);
+					$('.recipe_table tbody .box_item').eq(i).find('td').eq(1).html(sorted_amounts[i]);
+
+					if(bit_vector[j] == 1)
+						$('.recipe_table tbody .box_item').eq(i).find('td').eq(0).attr('isLiquid',1)
+
+					amounts[j] = -1;
+					break;
+				}
+			}
+		}
+
+		/********************************** Cook Recipe Button Code ************************************/
+		$('.cook_recipe_btn').click(function(){
+			$('.cook_recipe').submit();
+		});
+
+		/********************************** Abort Button Code ******************************************/
+		$('.abort_btn').click(function(){
+			var res = confirm("Are you sure you want to abort?");
+			if(res)
+				window.location.href = "/recipes";
+			return;
+		});
+
+		/************************************** Code for Moving Motor ************************************/
+		/*var ind = 1;
+		function callback_ingrDone(data){
+			if(ind < $('.recipe_table tbody tr').length)
+			{
+				changeColor(ind);
+				ind++;	
+				$.get("/recipes/ingrDone",callback_ingrDone);
+			}
+			else
+			{
+				changeColor(ind);
+				return;
+			}
+		}
+		$.get("/recipes/ingrDone",callback_ingrDone);*/
+
+		/****************************** Code for changing table rows colors *****************************/
+		
+		/*$('.recipe_table tbody tr').eq(0).addClass('info');
+		$('.recipe_table tbody tr').eq(0).find('.status_cell').html('filling..');
+
+		function changeColor(ind)
+		{
+			$('.recipe_table tbody tr').eq(ind-1).find('.status_cell').html('Done!');
+			$('.recipe_table tbody tr').eq(ind-1).removeClass('info').addClass('success');
+
+			if(ind < $('.recipe_table tbody tr').length)
+			{
+				$('.recipe_table tbody tr').eq(ind).addClass('info');
+				$('.recipe_table tbody tr').eq(ind).find('.status_cell').html('filling..');
+			}
+			else
+			{
+				$('.cook_recipe_btn').removeAttr('disabled');
+			}
+		}
+
+		for(ind = 1;ind <= $('.recipe_table tbody tr').length;ind++)
+		{
+			setTimeout(changeColor,(ind+1)*1000,ind);
+		}*/
+
+		/********************************** Scroll up-down button code ******************************/
+		$('.scroll-down-btn').click(function(){
+			var curr_scroll = $(window).scrollTop();
+			$(window).scrollTop(curr_scroll+20);
+		});
+		$('.scroll-up-btn').click(function(){
+			var curr_scroll = $(window).scrollTop();
+			$(window).scrollTop(curr_scroll-20);
+		});
+	
+
+	/******************************** Code for Weight Sensing ****************************************/
+	var interval_for_sensing = 2000
+
+	var boxIdx = 0;
+	var ingr_amounts = $('.recipe_ingrs').attr('amounts').split("@").sort(function(a, b){return b-a});
+	var total_ingr = ingr_amounts.length;
+	var weight_val = parseInt($('.box_item').eq(boxIdx).find('td').eq(2).html());
+
+	$('.recipe_table tbody tr').eq(0).addClass('info');
+	$('.recipe_table tbody tr').eq(0).find('.status_cell').html('filling..');
+	$('.curr_ingr').html($('.box_item').eq(boxIdx).find('td').eq(0).html());
+
+	function myupdateUI(actual_weight)
+	{
+		var target_weight = parseInt($('.box_item').eq(boxIdx).find('td').eq(1).html());
+		$('.box_item').eq(boxIdx).find('td').eq(2).html(actual_weight);
+		var ratio = (actual_weight * 1.0 / target_weight) * 100;
+
+		$('.progress-bar-success, .progress-bar-warning, .progress-bar-danger').css('width','0%');
+
+		if(ratio < 60)
+		{
+			$('.progress-bar-success').css('width',ratio+'%');
+		}
+		else if(ratio < 90)
+		{
+			$('.progress-bar-success').css('width','60%');	
+			$('.progress-bar-warning').css('width',(ratio-60)+'%');
+		}
+		else if(ratio < 100)
+		{
+			$('.progress-bar-success').css('width','60%');	
+			$('.progress-bar-warning').css('width','30%');	
+			$('.progress-bar-danger').css('width',(ratio-90)+'%');
+		}
+		else
+		{
+			$('.progress-bar-success').css('width','60%');	
+			$('.progress-bar-warning').css('width','30%');	
+			$('.progress-bar-danger').css('width','10%');
+		}
+	}
+	//setTimeout(function(){myupdateUI(100)},1000);
+	//setTimeout(function(){myupdateUI(350)},3000);
+	//setTimeout(function(){myupdateUI(790)},5000);
+
+	/*********************** Code for updating UI after each ingredient is filled *********************/
+	function updateUI(boxIdx)
+	{
+		// Code for changing table rows colors
+		$('.recipe_table tbody tr').eq(boxIdx-1).find('.status_cell').html('Done!');
+		$('.recipe_table tbody tr').eq(boxIdx-1).removeClass('info').addClass('success');
+
+		if(boxIdx < $('.recipe_table tbody tr').length)
+		{
+			$('.recipe_table tbody tr').eq(boxIdx).addClass('info');
+			$('.recipe_table tbody tr').eq(boxIdx).find('.status_cell').html('filling..');
+		}
+		else
+		{
+			$('.cook_recipe_btn').removeAttr('disabled');
+		}
+	}
+	/*********************** Code for getting weight and updating UI if box is filled *********************/
+	function checkWeight()
+	{
+		$('.curr_ingr').html($('.box_item').eq(boxIdx).find('td').eq(0).html());
+		$.get("/recipes/getWeight",function(data)
+		{
+			$('.box_item').eq(boxIdx).find('td').eq(2).html(data);
+			weight_val = parseInt(data);
+			if(weight_val < 0)
+				weight_val = 0;
+			console.log(weight_val);
+			myupdateUI(weight_val);
+			if(weight_val > ingr_amounts[boxIdx])
+			{
+				boxIdx++;
+				updateUI(boxIdx);
+
+				/*
+				// Code for changing table rows colors
+				$('.recipe_table tbody tr').eq(boxIdx-1).find('.status_cell').html('Done!');
+				$('.recipe_table tbody tr').eq(boxIdx-1).removeClass('info').addClass('success');
+
+				if(boxIdx < $('.recipe_table tbody tr').length)
+				{
+					$('.recipe_table tbody tr').eq(boxIdx).addClass('info');
+					$('.recipe_table tbody tr').eq(boxIdx).find('.status_cell').html('filling..');
+				}
+				else
+				{
+					$('.cook_recipe_btn').removeAttr('disabled');
+				}*/
+
+				
+				/* If next ingredient is liquid, process accrodingly */
+				var liquid_attr = $('.box_item').eq(boxIdx).find('td').eq(0).attr('isliquid');
+				if(typeof liquid_attr !== typeof undefined && liquid_attr !== false)
+				{
+					var ingrName = $('.box_item').eq(boxIdx-1).find('td').eq(0).html();
+					$.get("/recipes/ingrDone?ingrName="+ingrName,function(data){});
+					process_liquid();
+					return;
+				}
+				if(boxIdx <= total_ingr)
+				{
+					alert("Place box on disc.");
+					var ingrName = $('.box_item').eq(boxIdx-1).find('td').eq(0).html();
+					//alert($('.box_item').eq(boxIdx-1).find('td').eq(0).html());
+
+					/************************ Code for Moving Motor ******************/
+					$.get("/recipes/ingrDone?ingrName="+ingrName,function(data){
+						console.log(data);
+						if(boxIdx < total_ingr)
+							alert("Place new box on weight scale.");
+						$.get("/recipes/resetScale",function(){
+							setTimeout(checkWeight,interval_for_sensing);
+						});
+						
+					});
+				}
+			}
+			else if(boxIdx < total_ingr)
+			{
+				setTimeout(checkWeight,interval_for_sensing);
+			}
+		});
+	}
+
+	/******************************** Processing Liquid Ingredients ******************************************/
+	var show_liquid_volume;
+	var liquid_volume;
+	var liquid_volume_cnt = 0;
+
+	function process_liquid()
+	{
+		$('.curr_ingr').html($('.box_item').eq(boxIdx).find('td').eq(0).html());
+		liquid_volume = parseInt($('.box_item').eq(boxIdx).find('td').eq(1).html());
+		console.log("Liquid Volume: " + liquid_volume);
+
+		$.get("/recipes/fillFluid?liquid_volume="+liquid_volume,function(data){
+			show_liquid_volume = setInterval(show_liquid_val,1000);
+		});
+	}
+
+	function show_liquid_val()
+	{
+		$('.box_item').eq(boxIdx).find('td').eq(2).html(liquid_volume_cnt);
+		liquid_volume_cnt = liquid_volume_cnt + 1;
+
+		if(liquid_volume_cnt > liquid_volume)
+		{
+			clearInterval(show_liquid_volume);
+			liquid_volume_cnt = 0;
+			boxIdx++;
+			updateUI(boxIdx);
+			/*
+			// Code for changing table rows colors
+			$('.recipe_table tbody tr').eq(boxIdx-1).find('.status_cell').html('Done!');
+			$('.recipe_table tbody tr').eq(boxIdx-1).removeClass('info').addClass('success');
+
+			if(boxIdx < $('.recipe_table tbody tr').length)
+			{
+				$('.recipe_table tbody tr').eq(boxIdx).addClass('info');
+				$('.recipe_table tbody tr').eq(boxIdx).find('.status_cell').html('filling..');
+			}
+			else
+			{
+				$('.cook_recipe_btn').removeAttr('disabled');
+			}*/
+
+			//If next ingredient is liquid - process that accordingly 
+			var liquid_attr = $('.box_item').eq(boxIdx).find('td').eq(0).attr('isliquid');
+			if(typeof liquid_attr !== typeof undefined && liquid_attr !== false)
+			{
+				process_liquid();
+				return;
+			}
+			else
+			{
+				alert('Place box on weight scale.');
+				$.get("/recipes/resetScale",function(data){
+					setTimeout(checkWeight,interval_for_sensing);
+				});
+				return;
+			}
+		}
+	}
+
+	
+	/* Start processing with first ingredient */
+	var liquid_attr = $('.box_item').eq(boxIdx).find('td').eq(0).attr('isliquid');
+	if(typeof liquid_attr !== typeof undefined && liquid_attr !== false)
+	{
+		process_liquid();
+		return;
+	}
+	else
+	{
+		alert('Place box on weight scale.');
+		$.get("/recipes/resetScale",function(data){
+			setTimeout(checkWeight,interval_for_sensing);
+		});
+		
+	}
+});
+	</script>
+</body>
+</html>

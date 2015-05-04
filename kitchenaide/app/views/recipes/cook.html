@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Kitchen Aide | Cook Recipe</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" type="text/css" href="../css/bootstrap.css">
+<link rel="stylesheet" type="text/css" href="../css/font-awesome.css">
+<link rel="stylesheet" type="text/css" href="../css/style.css">
+<link href='http://fonts.googleapis.com/css?family=Roboto:400,300,700|Open+Sans:700' rel='stylesheet' type='text/css'>
+
+<script type="text/javascript" src="../js/jquery-1.8.3.min.js"></script>
+<script type="text/javascript" src="../js/jquery.mobile.customized.min.js"></script>
+<script type="text/javascript" src="../js/jquery.easing.1.3.js"></script>
+<script type="text/javascript" src="../js/jquery.timer.js"></script> 
+</head>
+<body>
+	<div class="scroll-up-btn" style="position:fixed;right:5%;top:20%;height:60px;width:60px;background-image:url('../images/up_btn.png');background-size:100% 100%;cursor:pointer;z-index:100"></div>
+	<div class="scroll-down-btn" style="position:fixed;right:5%;top:70%;height:60px;width:60px;background-image:url('../images/down_btn.png');background-size:100% 100%;cursor:pointer;z-index:100"></div>
+	<div class="overlay_bg" style="opacity:0.7;height:100%;width:100%;position:fixed;top:0;left:0;background-color:gray;z-index:200;display:none"></div>
+
+	<div class="overlay_box" style="height:auto;width:40%;position:fixed;top:30%;left:30%;z-index:201;display:none;border:3px solid black;border-radius:10px;background-color:#FFF;">
+		<h4 id="timer_step" style="text-align:center;padding:10px"></h4>
+		<h3 id="timer_section" style="text-align:center"></h3>
+		<button class="stop_timer_btn btn btn-default col-md-4 col-md-offset-4" style="margin-bottom:30px">Stop Timer</div>
+	</div>
+	<div class="recipe_data" steps="{{steps}}" timer_vals="{{timer_vals}}" orderedIngrs = "{{orderedIngrs}}"></div>
+	<div id="home">
+		<h2 style="text-align:center;color:#FFF;background-color:#000;padding:10px;margin:0;"/>{{recipe_name}}</h2>
+		<div class="container">
+			<div class="row">
+				<div class="col-md-12">
+					<h3 style="text-align:center;margin-top:10px">Instructions</h3>
+				</div>
+			</div>
+		</div>
+	</div>
+	<form method="post" action="/recipes/recipeDone" class="form-inline cook_recipe" role="form" style="display:none">
+			<input type="hidden" name="recipe_name" value="{{recipe_name}}" class="form_recipe_name"/>
+			<input type="hidden" name="_csrf" value="{{ csrf_token }}" />
+	</form>
+
+	<table style="font-size:18px;width:66.66%" class="table table-striped recipe_table col-md-offset-2" recipes={{recipe_names}} timestamps={{timestamps}}>
+		<thead><th class="col-md-4">Recipe Steps</th></thead>
+		<tbody>
+		</tbody>
+	</table>
+	<div class="container" style="margin-top:20px;margin-bottom:20px">
+		<div class="row">
+			<button class='col-md-2 col-md-offset-2 abort btn btn-danger abort-btn'>Abort</button>
+			<button class='col-md-2 col-md-offset-4 abort btn btn-success state-btn recipe-next-btn'>Next</button>
+		</div>
+	</div>
+	<script src="../js/jquery.prettyPhoto.js" type="text/javascript" charset="utf-8"></script>
+	<script src="../js/bootstrap.min.js"></script>
+
+	<script src="https://cdn.socket.io/socket.io-1.3.5.js"></script>
+
+	<script type="text/javascript">
+
+	/********************************** Script for timer ***************************************/
+	function pad(number, length) {
+	    var str = '' + number;
+	    while (str.length < length) {str = '0' + str;}
+	    return str;
+	}
+	function formatTime(time) {
+	    var min = parseInt(time / 6000),
+	        sec = parseInt(time / 100) - (min * 60)
+	        //,
+	        //hundredths = pad(time - (sec * 100) - (min * 6000), 2);
+	    //return (min > 0 ? pad(min, 2) : "00") + ":" + pad(sec, 2) + ":" + hundredths;
+	    return (min > 0 ? pad(min, 2) : "00") + ":" + pad(sec, 2);
+	}
+
+	var count_down_timer = new (function() {
+	    var $countdown,
+	        $form, // Form used to change the countdown time
+	        //incrementTime = 70,
+	        incrementTime = 1000,
+	        currentTime = 10,
+	        updateTimer = function() {
+	            $countdown.html(formatTime(currentTime));
+	            if (currentTime == 0) {
+	                count_down_timer.Timer.stop();
+	                timerComplete();
+	                count_down_timer.resetCountdown();
+	                return;
+	            }
+	            currentTime -= incrementTime / 10;
+	            if (currentTime < 0) currentTime = 0;
+	        },
+	        timerComplete = function() {
+	        },
+	        init = function() {
+	            $countdown = $('#timer_section');
+	            count_down_timer.Timer = $.timer(updateTimer, incrementTime, true);
+	        };
+	    this.resetCountdown = function(timeVal) {
+	        var newTime = parseInt(timeVal) * 100;
+	        if (newTime > 0) {currentTime = newTime;}
+	        this.Timer.stop().once();
+	    };
+	    $(init);
+	});
+
+	$(document).ready(function(){
+
+		var steps = $('.recipe_data').attr('steps').split("@");
+		var timer_vals = $('.recipe_data').attr('timer_vals').split("@");
+		var orderedIngrsList = $('.recipe_data').attr('orderedIngrs').split("^");
+
+		console.log(orderedIngrsList);
+		/********************************** Adding new steps **************************************/
+		steps.forEach(function(step,index){
+			/* Here, we will get confirmation from Ingredient Box microcontroller and append steps accordingly */
+			$('.recipe_table tbody').append("<tr class='box_item'> <td>" + step + "</td> </tr>");
+		});
+
+		/********************************** Abort Button Code *************************************/
+		$('.abort-btn').click(function(){
+			var res = confirm("Are you sure you want to abort?");
+			if(res)
+				window.location.href = "/recipes";
+			return;
+		});
+		
+		/********************************** Code for navigating table rows ****************************/
+
+		// Make states according to time required
+		states = []
+		times = []
+		var timer_i = 0;
+
+		for(timer_i=0; timer_i<timer_vals.length; timer_i++)
+		{
+			curr_timer_val = timer_vals[timer_i].split(";")
+			for(var j=0; j < curr_timer_val.length;j++)
+			{
+				states.push(timer_i);
+				times.push(parseInt(curr_timer_val[j]));
+			}
+		}
+
+		// Add done state at the end
+		states.push(timer_i);
+		times.push(-1);
+
+		function sendAlert()
+		{
+			$.get("/recipes/sendAlert",function(data){
+				//$('.box_item').eq(boxIdx).find('td').eq(2).html(data);
+				return;
+			});
+		}
+
+		function processState(statesIndex)
+		{
+			// If we are in last done state, mark all rows as success
+			if(times[statesIndex] == -1)
+			{
+				$('.recipe_table tbody tr').removeClass('info').addClass('success');
+				$('.state-btn').removeClass('recipe-next-btn').removeClass('start-timer-btn').
+					addClass('recipe-done-btn').html("Done!").unbind('click');
+
+				$('.recipe-done-btn').click(function(){
+					alert("Enjoy your recipe..!\nClick Ok to go to home page");
+					$('.cook_recipe').submit();
+					//window.location.href = "/";
+				});
+				return;
+			}
+			// Mark all previous rows as success
+			for(var sid = 0;sid < states[statesIndex];sid++)
+			{
+				$('.recipe_table tbody tr').eq(sid).removeClass('info').addClass('success');
+			}
+			
+			// Mark current row as info
+			$('.recipe_table tbody tr').eq(states[statesIndex]).addClass('info');
+
+			// Based on current row info change button html
+			if(times[statesIndex] == 0)			
+			{
+				$('.state-btn').removeClass('start-timer-btn').addClass('recipe-next-btn').html("Next").unbind('click');
+
+				$('.recipe-next-btn').click(function(){
+					curr_state_index++;
+					processState(curr_state_index);
+					showIngr(orderedIngrsList[curr_state_index]);
+					speakStep(curr_state_index);
+				});
+			}
+			else
+			{
+				$('.state-btn').removeClass('recipe-next-btn').addClass('start-timer-btn').html("Start Timer").unbind('click');
+				$('.start-timer-btn').click(function(){
+					count_down_timer.resetCountdown(times[statesIndex]*60);					
+					setTimeout(sendAlert,(times[statesIndex]*60-70)*1000);
+					//count_down_timer.resetCountdown(30);					
+					//setTimeout(sendAlert,(10)*1000);
+					count_down_timer.Timer.toggle();
+					$('.overlay_box, .overlay_bg').show();
+					$('#timer_step').html(steps[states[statesIndex]]);
+				});
+			}
+		}
+
+		$('.stop_timer_btn').click(function(){
+			// reset timer here 
+			count_down_timer.Timer.toggle();
+			$('.overlay_bg, .overlay_box').hide();
+			curr_state_index++;
+			console.log(curr_state_index);
+			processState(curr_state_index);
+			showIngr(orderedIngrsList[curr_state_index]);
+			speakStep(curr_state_index);
+		});
+
+		/********************************** Scroll up-down button code ******************************/
+		$('.scroll-down-btn').click(function(){
+			var curr_scroll = $(window).scrollTop();
+			$(window).scrollTop(curr_scroll+20);
+		});
+		$('.scroll-up-btn').click(function(){
+			var curr_scroll = $(window).scrollTop();
+			$(window).scrollTop(curr_scroll-20);
+		});
+
+		/********************************** Audio for step of recipe ********************************/
+
+		/* Start processing recipe steps */
+		
+		var curr_state_index = 0;
+		processState(curr_state_index);
+		showIngr(orderedIngrsList[curr_state_index]);
+		speakStep(curr_state_index);
+				
+		/* Code for Text to Speech */
+		function speakStep(step_idx)
+		{
+			var stepStr = $('.box_item').eq(step_idx).find('td').html()
+			var utterance = new SpeechSynthesisUtterance(stepStr);
+			window.speechSynthesis.speak(utterance);
+		}
+		/* Code for ordering ingredients */
+		function showIngr(listToPass)
+		{
+			//alert(listToPass);
+			console.log(listToPass);
+			
+			$.get("/recipes/orderIngredients?orderedIngrs="+listToPass,function(data){
+				console.log(data);
+			});
+		}
+	});
+
+	</script>
+</body>
+</html>

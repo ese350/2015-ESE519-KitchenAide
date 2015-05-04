@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Kitchen Aide | Recipe Contents</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" type="text/css" href="../css/bootstrap.css">
+<link rel="stylesheet" type="text/css" href="../css/font-awesome.css">
+<link rel="stylesheet" type="text/css" href="../css/style.css">
+<link href='http://fonts.googleapis.com/css?family=Roboto:400,300,700|Open+Sans:700' rel='stylesheet' type='text/css'>
+
+<script type="text/javascript" src="../js/jquery-1.8.3.min.js"></script>
+<script type="text/javascript" src="../js/jquery.mobile.customized.min.js"></script>
+<script type="text/javascript" src="../js/jquery.easing.1.3.js"></script> 
+</head>
+<body>
+	<div class="scroll-up-btn" style="position:fixed;right:5%;top:20%;height:60px;width:60px;background-image:url('../images/up_btn.png');background-size:100% 100%;cursor:pointer;z-index:100"></div>
+	<div class="scroll-down-btn" style="position:fixed;right:5%;top:70%;height:60px;width:60px;background-image:url('../images/down_btn.png');background-size:100% 100%;cursor:pointer;z-index:100"></div>
+    <div class="recipe_ingrs" ingrs="{{ingrs}}" amounts="{{amounts}}" others="{{other}}" inv-names="{{inv_names}}" inv-amounts="{{inv_amounts}}" recipe-image="{{recipe_image}}" recipe-rating="{{recipe_rating}}" ingr-images="{{ingr_images}}"></div>
+    <div id="home">
+		<h2 style="text-align:center;color:#FFF;background-color:#000;padding:10px;margin:0;"/>{{recipe_name}}</h2>
+		<div class="container">
+			<div class="row">
+				<div class="col-md-12">
+					<h3 style="text-align:center;margin-top:10px">Ingredients</h3>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<form method="post" action="/recipes/fillBox" class="form-inline cook_recipe" role="form" style="display:none">
+			<input type="hidden" name="recipe_name" value="{{recipe_name}}" class="form_recipe_name"/>
+			<input type="hidden" name="_csrf" value="{{ csrf_token }}" />
+	</form>
+
+	<table style="font-size:20px;width:66.66%" class="table table-striped recipe_table col-md-offset-2" recipes={{recipe_names}} timestamps={{timestamps}}>
+		<thead><th class='col-md-2'> </th><th>Ingredient</th><th>Amount (gm/ml)</th><th>Item in Inventory</th><th>Amount in inventory (gm)</th></thead>
+		<tbody>
+		</tbody>
+	</table>
+	<div class="container">
+    	<div class="row">
+	    		<div class="col-md-12">
+	    			<!--<h3 style="text-align:center">Note - Apart from ingredients above, this recipe also requires following ingredients:</h3>-->
+	    			<h4 class="other_ingrs col-md-10 col-md-offset-1" style="text-align:center"></h4>
+	    		</div>
+	    	</div>
+	    </div>
+	<h4 style="text-align:center;font-weight:bold">If you have all the required ingredients, click proceed to fill the ingredient box.</h4>
+	<div class="container" style="margin-top:20px;margin-bottom:20px">
+		<div class="row">
+			<button class='col-md-2 col-md-offset-2 abort btn btn-danger abort_btn'>Abort</button>
+			<button class='col-md-2 col-md-offset-4 abort btn btn-success cook_recipe_btn'>Proceed</button>
+		</div>
+	</div>
+
+	<script src="../js/bootstrap.min.js"></script>
+	<script type="text/javascript">
+	jQuery(document).ready(function(){
+
+		var ingrs = $('.recipe_ingrs').attr('ingrs').split("@");
+		var amounts = $('.recipe_ingrs').attr('amounts').split("@");
+		var others = $('.recipe_ingrs').attr('others').split("@");
+		var ingr_names = $('.recipe_ingrs').attr('inv-names').split("@");
+		var ingr_amounts = $('.recipe_ingrs').attr('inv-amounts').split("@");
+		var ingr_images = $('.recipe_ingrs').attr('ingr-images').split("@");
+		var recipe_image = $('.recipe_ingrs').attr('recipe-image');
+		var recipe_rating = $('.recipe_ingrs').attr('recipe-rating');
+
+		$('.other_ingrs').html(others.join(" , "));
+
+
+		/************************************* Add Recipe Image *****************************************/
+		var recipe_img = $("<img class='col-md-offset-5 col-md-2' src='"+recipe_image+"' />");
+		$('#home').after(recipe_img);
+
+		/********************************** Add Ingredients to table ************************************/
+		
+		if (ingrs.length == 1 && ingrs[0] == "")
+			$('.recipe_table').remove()
+
+		ingrs.forEach(function(ingr,index){
+			img_str = "";
+
+			//if(ingr_images[index] != "0")
+			//	img_str = "<img src='" + "/images/ingr_images/" + ingr_images[index] + ".jpg' height='10%' width='10%'/>";
+			if(ingr_images[index] != "0")
+				img_str = "style='background:url(\"/images/ingr_images/" + ingr_images[index] + ".jpg\");background-size:50px 50px;background-repeat:no-repeat;background-position:30px'";
+
+			var row = $("<tr class='box_item'> <td " + img_str +"></td> <td>" + ingr + "</td> <td>" + amounts[index] + "</td> <td>"+ingr_names[index]+"</td><td>"+ingr_amounts[index]+"</td></tr>");
+
+			if(parseFloat(amounts[index]) <= parseFloat(ingr_amounts[index]))
+				row.addClass("success");
+			else
+				row.addClass("danger");
+			$('.recipe_table tbody').append(row);
+		});
+
+		/********************************** Cook Recipe Button Code ************************************/
+		$('.cook_recipe_btn').click(function(){
+			$('.cook_recipe').submit();
+		});
+
+		/********************************** Abort Button Code ******************************************/
+		$('.abort_btn').click(function(){
+			var res = confirm("Are you sure you want to abort?");
+			if(res)
+				window.location.href = "/recipes";
+			return;
+		});
+
+		/********************************** Scroll up-down button code ******************************/
+		$('.scroll-down-btn').click(function(){
+			var curr_scroll = $(window).scrollTop();
+			$(window).scrollTop(curr_scroll+20);
+		});
+		$('.scroll-up-btn').click(function(){
+			var curr_scroll = $(window).scrollTop();
+			$(window).scrollTop(curr_scroll-20);
+		});
+	});
+	</script>
+</body>
+</html>
